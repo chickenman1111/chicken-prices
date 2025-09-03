@@ -3,7 +3,8 @@ name: scrape-chicken-prices
 on:
   workflow_dispatch:
   schedule:
-    - cron: "5 1,5 * * *"   # KST 10:50
+    # UTC 01:05, 05:05 → KST 10:05, 14:05
+    - cron: "5 1,5 * * *"
 
 permissions:
   contents: write
@@ -12,7 +13,7 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout (full history)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -30,11 +31,25 @@ jobs:
 
       - name: Run scraper
         run: python fetch.py
-      - name: Commit & Push if changed
+
+      - name: List output (debug)
         run: |
+          ls -al || true
+          ls -al data || true
+
+      - name: Commit & Push (force, no conflicts)
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git add data/*.csv || true
-          git diff --quiet && echo "No changes to commit" || git commit -m "Update prices"
-          git pull origin main --rebase || true
+
+          # 원격 최신 상태로 맞춘 뒤
+          git fetch origin main
+          git reset --hard origin/main
+
+          # 변경사항 커밋 시도 (없어도 OK)
+          git add -A
+          git commit -m "Update prices" || echo "nothing to commit"
+
+          # 무조건 밀어넣기
           git push origin HEAD:main --force
