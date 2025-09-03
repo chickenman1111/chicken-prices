@@ -1,0 +1,39 @@
+name: scrape-chicken-prices
+
+on:
+  workflow_dispatch:
+  schedule:
+    # UTC 01:05, 05:05 → 한국시간(KST) 10:05, 14:05
+    - cron: "5 1,5 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run scraper
+        run: python fetch.py
+
+      - name: Commit & Push if changed
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git add data/*.csv || true
+          git diff --quiet && echo "No changes to commit" || git commit -m "Update prices $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git push
