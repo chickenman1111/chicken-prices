@@ -37,19 +37,22 @@ jobs:
           ls -al || true
           ls -al data || true
 
-      - name: Commit & Push (force, no conflicts)
+      - name: Commit & Push if changed
         run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
 
-          # 원격 최신 상태로 맞춘 뒤
-          git fetch origin main
-          git reset --hard origin/main
-
-          # 변경사항 커밋 시도 (없어도 OK)
+          # 변경사항 스테이징
           git add -A
-          git commit -m "Update prices" || echo "nothing to commit"
 
-          # 무조건 밀어넣기
-          git push origin HEAD:main --force
+          # 변경 없으면 끝 (push 안 함)
+          if git diff --staged --quiet; then
+            echo "No changes to commit or push"
+            exit 0
+          fi
+
+          # 원격 최신 반영 후 커밋/푸시
+          git fetch origin main
+          git pull --rebase origin main || true
+          git commit -m "Update prices"
+          git push origin HEAD:main
