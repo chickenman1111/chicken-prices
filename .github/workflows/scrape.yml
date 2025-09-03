@@ -3,8 +3,7 @@ name: scrape-chicken-prices
 on:
   workflow_dispatch:
   schedule:
-    # UTC 01:05, 05:05 → 한국시간(KST) 10:05, 14:05
-    - cron: "5 1,5 * * *"
+    - cron: "5 1,5 * * *"   # KST 10:50
 
 permissions:
   contents: write
@@ -15,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -36,4 +37,5 @@ jobs:
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git add data/*.csv || true
           git diff --quiet && echo "No changes to commit" || git commit -m "Update prices $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git pull --rebase
           git push
